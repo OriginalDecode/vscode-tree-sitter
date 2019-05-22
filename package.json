@@ -3,14 +3,13 @@
 	"displayName": "Tree Sitter",
 	"description": "Accurate syntax coloring with tree-sitter",
 	"icon": "tree-sitter-small.png",
-	"version": "0.1.10",
+	"version": "0.1.8",
 	"preview": true,
 	"publisher": "georgewfraser",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/georgewfraser/vscode-tree-sitter"
 	},
-	"license": "MIT",
 	"engines": {
 		"vscode": "^1.34.0"
 	},
@@ -73,6 +72,42 @@
 					"dark": "#DCDCAA",
 					"light": "#795E26",
 					"highContrast": "#DCDCAA"
+				}
+			},
+			{
+				"id": "treeSitter.primitive",
+				"description": "Color for keywords",
+				"defaults": {
+					"dark": "#569CD6",
+					"light": "#569CD6",
+					"highContrast": "#569CD6"
+				}
+			},
+			{
+				"id": "treeSitter.macro",
+				"description": "Color for macros",
+				"defaults": {
+					"dark": "#BD63C5",
+					"light": "#BD63C5",
+					"highContrast": "#BD63C5"
+				}
+			},
+			{
+				"id": "treeSitter.enum",
+				"description": "Color for enums",
+				"defaults": {
+					"dark": "#BD63C5",
+					"light": "#BD63C5",
+					"highContrast": "#BD63C5"
+				}
+			},
+			{
+				"id": "treeSitter.keyword",
+				"description": "Color for enums",
+				"defaults": {
+					"dark": "#569CD6",
+					"light": "#569CD6",
+					"highContrast": "#569CD6"
 				}
 			}
 		]
