@@ -22,7 +22,12 @@ const keywordsSpec = [
 	"sizeof",
 	"auto",
 	"for",
+	"true",
+	"false",
+	"enum",
 ]
+
+
 
 // Be sure to declare the language in package.json and include a minimalist grammar.
 const languages: { [id: string]: { parser: Parser, color: ColorFunction } } = {
@@ -126,11 +131,7 @@ function addToColorMap(map: Map<string, Parser.SyntaxNode[]>, id: string, node: 
 
 // @ts-ignore
 function colorCpp(x: Parser.SyntaxNode, editor: VS.TextEditor) {
-
-	// var foo: { [accessParam: accessType]: containType } = { }
-
 	var colorMapping = new Map<string, Parser.SyntaxNode[]>()
-
 	function scan(x: Parser.SyntaxNode) {
 		if (!isVisible(x, editor)) return
 		if (x.type == 'identifier' ||
@@ -238,28 +239,7 @@ export function activate(context: VS.ExtensionContext) {
 			delete trees[doc.uri.toString()]
 		}
 	}
-	// Apply themeable colors
-	const typeStyle = VS.window.createTextEditorDecorationType({
-		color: new VS.ThemeColor('treeSitter.type')
-	})
-	const fieldStyle = VS.window.createTextEditorDecorationType({
-		color: new VS.ThemeColor('treeSitter.field')
-	})
-	const functionStyle = VS.window.createTextEditorDecorationType({
-		color: new VS.ThemeColor('treeSitter.function')
-	})
-	const primitiveStyle = VS.window.createTextEditorDecorationType({
-		color: new VS.ThemeColor('treeSitter.primitive')
-	})
-	const macroStyle = VS.window.createTextEditorDecorationType({
-		color: new VS.ThemeColor('treeSitter.macro')
-	})
-	const enumStyle = VS.window.createTextEditorDecorationType({
-		color: new VS.ThemeColor('treeSitter.enum')
-	})
-	const keywordStyle = VS.window.createTextEditorDecorationType({
-		color: new VS.ThemeColor('treeSitter.keyword')
-	})
+
 	function colorUri(uri: VS.Uri) {
 		for (const editor of VS.window.visibleTextEditors) {
 			if (editor.document.uri == uri) {
@@ -267,6 +247,18 @@ export function activate(context: VS.ExtensionContext) {
 			}
 		}
 	}
+
+	function getNodeList(key:string, map: Map<string, Parser.SyntaxNode[]>) {
+		let nodeList = map.get(key)
+		if(!nodeList) return []
+		return nodeList!.map(range)
+	}
+
+	function createDecorator(key:string) {
+		const suffix = key.substr(0, key.length - 1)
+		return VS.window.createTextEditorDecorationType( { color:new VS.ThemeColor('treeSitter.'+ suffix) } )
+	}
+
 	function colorEditor(editor: VS.TextEditor) {
 		const t = trees[editor.document.uri.toString()]
 		if (t == null) return
@@ -274,22 +266,9 @@ export function activate(context: VS.ExtensionContext) {
 		if (language == null) return
 		const colorMapping = language.color(t.rootNode, editor)
 
-		if (editor.document.languageId == 'cpp') {
-			if (colorMapping != null) {
-				editor.setDecorations(typeStyle, colorMapping.has('types') ? colorMapping.get('types')!.map(range) : [])
-				editor.setDecorations(fieldStyle, colorMapping.has('fields') ? colorMapping.get('fields')!.map(range) : [])
-				editor.setDecorations(functionStyle, colorMapping.has('functions') ? colorMapping.get('functions')!.map(range) : [])
-				editor.setDecorations(keywordStyle, colorMapping.has('keywords') ? colorMapping.get('keywords')!.map(range) : [])
-				editor.setDecorations(macroStyle, colorMapping.has('macros') ? colorMapping.get('macros')!.map(range) : [])
-				editor.setDecorations(enumStyle, colorMapping.has('enums') ? colorMapping.get('enums')!.map(range) : [])
-				editor.setDecorations(primitiveStyle, colorMapping.has('primitives') ? colorMapping.get('primitives')!.map(range) : [])
-			}
-		} else {
-			// if(types != null) editor.setDecorations(typeStyle, types.map(range))
-			// if(fields != null) editor.setDecorations(fieldStyle, fields.map(range))
-			// if(functions != null) editor.setDecorations(functionStyle, functions.map(range))
+		for(const [ key ] of colorMapping) {
+			editor.setDecorations(createDecorator(key), getNodeList(key, colorMapping))
 		}
-		// console.log(t.rootNode.toString())
 	}
 	VS.window.visibleTextEditors.forEach(open)
 	context.subscriptions.push(VS.window.onDidChangeVisibleTextEditors(editors => editors.forEach(open)))
