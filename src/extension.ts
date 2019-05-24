@@ -25,9 +25,11 @@ const keywordsSpec = [
 	"true",
 	"false",
 	"enum",
+	'static',
+	'constexpr'
 ]
 
-
+var decoratorMap = new Map<string, VS.TextEditorDecorationType>()
 
 // Be sure to declare the language in package.json and include a minimalist grammar.
 const languages: { [id: string]: { parser: Parser, color: ColorFunction } } = {
@@ -133,43 +135,95 @@ function addToColorMap(map: Map<string, Parser.SyntaxNode[]>, id: string, node: 
 function colorCpp(x: Parser.SyntaxNode, editor: VS.TextEditor) {
 	var colorMapping = new Map<string, Parser.SyntaxNode[]>()
 	function scan(x: Parser.SyntaxNode) {
-		if (!isVisible(x, editor)) return
-		if (x.type == 'identifier' ||
-			x.type == 'field_identifier') {
-			if (x.parent != null) {
-				if (x.parent.type == 'preproc_def') {
-					addToColorMap(colorMapping, "macros", x)
-				} else if (x.parent.type == 'destructor_name' ||
-					x.parent.type == 'function_declarator' ||
-					x.parent.type == 'call_expression') {
-					addToColorMap(colorMapping, 'functions', x)
-				} else if (x.parent.type == 'scoped_identifier' ||
-					x.parent.type == 'field_expression') {
-					if (x.parent.parent != null) {
-						if (x.parent.parent.type == 'function_declarator' ||
-							x.parent.parent.type == 'template_function' ||
-							x.parent.parent.type == 'call_expression') {
-							if (x.parent.parent.parent != null) {
-								addToColorMap(colorMapping, 'functions', x)
-							}
-						}
-					}
-				} else if (x.parent.type == 'enumerator') {
-					addToColorMap(colorMapping, 'enums', x)
-				} else if (x.parent.type == 'namespace_definition') {
-					addToColorMap(colorMapping, 'types', x)
-				}
-			} else if (x.type == 'field_identifier') {
-				addToColorMap(colorMapping, 'fields', x)
+		if (!isVisible(x, editor)) 
+			return
+		
+		if (x.type == 'identifier') 
+		{
+			const parent_type = x.parent != null ? x.parent.type : ''
+			if (parent_type == 'preproc_def') 
+			{
+				addToColorMap(colorMapping, "macros", x)
+			} 
+			else if (parent_type == 'enumerator') 
+			{
+				addToColorMap(colorMapping, 'enums', x)
+			} 
+			else if (parent_type == 'namespace_definition') 
+			{
+				addToColorMap(colorMapping, 'types', x)
 			}
-		} else if (x.type == 'type_identifier' ||
-			x.type == 'namespace_identifier') {
+			else if (parent_type == 'destructor_name' || parent_type == 'function_declarator' || parent_type == 'call_expression') 
+			{
+				addToColorMap(colorMapping, 'functions', x)
+			} 
+			else if (parent_type == 'scoped_identifier' ) 
+			{
+				const type = x.parent!.parent != null ? x.parent!.parent.type : ''
+				if (type == 'function_declarator' || type == 'template_function') 
+				{
+					const type = x.parent!.parent!.parent != null ? x.parent!.parent!.parent.type : ''
+					if(type == 'call_expression' || type == 'function_definition')
+					{
+						addToColorMap(colorMapping, 'functions', x)
+					}
+				} 
+				else if ( type == 'call_expression')
+				{
+					addToColorMap(colorMapping, 'functions', x)
+				}
+			} 
+			else
+			{
+				if(keywordsSpec.includes(x.text))
+				{
+					addToColorMap(colorMapping, 'keywords', x)
+				}
+				else
+				{
+					addToColorMap(colorMapping, 'fields', x)
+				}
+			}
+		}
+		else if(x.type == 'field_identifier') 
+		{
+			if(x.parent != null) 
+			{
+				if(x.parent.type == 'function_declarator')
+				{
+					addToColorMap(colorMapping, 'functions', x)
+				} 
+				else if (x.parent.type == 'field_expression')
+				{
+					const type = x.parent.parent != null ? x.parent.parent.type : ''
+					if(type == 'call_expression')
+					{
+						addToColorMap(colorMapping, 'functions', x)
+					}
+					else
+					{
+						addToColorMap(colorMapping, 'fields', x)
+					}
+				}
+				else
+				{
+					addToColorMap(colorMapping, 'fields', x)
+				}
+			}
+		} 
+		else if (x.type == 'type_identifier' ||	x.type == 'namespace_identifier') 
+		{
 			addToColorMap(colorMapping, 'types', x)
-		} else if (x.type == 'primitive_type') {
+		} 
+		else if (x.type == 'primitive_type') 
+		{
 			addToColorMap(colorMapping, 'primitives', x)
-		} else if (keywordsSpec.includes(x.type)) {
+		}
+		else if (keywordsSpec.includes(x.text)) 
+		{
 			addToColorMap(colorMapping, 'keywords', x)
 		}
+
 		for (const child of x.children) {
 			scan(child)
 		}
@@ -248,15 +302,20 @@ export function activate(context: VS.ExtensionContext) {
 		}
 	}
 
-	function getNodeList(key:string, map: Map<string, Parser.SyntaxNode[]>) {
+	function getNodeList(key: string, map: Map<string, Parser.SyntaxNode[]>) {
 		let nodeList = map.get(key)
-		if(!nodeList) return []
+		if (!nodeList) return []
 		return nodeList!.map(range)
 	}
 
-	function createDecorator(key:string) {
+	function createDecorator(key: string) {
 		const suffix = key.substr(0, key.length - 1)
-		return VS.window.createTextEditorDecorationType( { color:new VS.ThemeColor('treeSitter.'+ suffix) } )
+
+		let decorator = decoratorMap.get(suffix)
+		if(decorator == null)
+			decorator = decoratorMap.set(suffix, VS.window.createTextEditorDecorationType({ color: new VS.ThemeColor('treeSitter.' + suffix) })).get(suffix)
+
+		return decorator!
 	}
 
 	function colorEditor(editor: VS.TextEditor) {
@@ -266,7 +325,7 @@ export function activate(context: VS.ExtensionContext) {
 		if (language == null) return
 		const colorMapping = language.color(t.rootNode, editor)
 
-		for(const [ key ] of colorMapping) {
+		for (const [key] of colorMapping) {
 			editor.setDecorations(createDecorator(key), getNodeList(key, colorMapping))
 		}
 	}
