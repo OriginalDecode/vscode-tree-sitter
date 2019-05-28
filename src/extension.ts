@@ -107,8 +107,8 @@ export async function activate(context: vscode.ExtensionContext) {
         if (language == null) return;
         if (language.parser == null) {
             const absolute = path.join(context.extensionPath, 'parsers', language.module + '.wasm');
-            const wasm = path.relative(process.cwd(), absolute);
-            const lang = await Parser.Language.load(wasm);
+            // const wasm = path.relative(process.cwd(), absolute);
+            const lang = await Parser.Language.load(absolute);
             const parser = new Parser();
             parser.setLanguage(lang);
             language.parser = parser;
